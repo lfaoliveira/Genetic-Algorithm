@@ -31,10 +31,8 @@ dicio_produtos = {
   20: {'Produto': 'Cerveja (600ml)', 'Preço': 6, 'Necessidade': 2}
 }
 
-valor = int(random.random()*100)
-pop  = sol1, sol2, sol3
-
 limite_custo = 75
+
 
 class Solucao:
   def __init__(self, tam_sol):
@@ -81,13 +79,14 @@ def reproducao(pai, mae, tam_sol):
     parente = None
     if (bit_pai == 1):
       # filho recebe parte do pai
-      # comeca em index e vai ate index + tam_div - 1
+
       parente = pai
       bit_pai = 0
     else:
       # filho recebe parte da mae
       bit_pai = 1
       parente = mae
+    # comeca em index e vai ate index + tam_div - 1
     for i in range(index, index + tam_div):
       if (i >= len(filho.cromo)):
         break
@@ -103,24 +102,45 @@ def gerar_pop_inicial(tam_pop, tam_sol):
   for i in range(tam_pop):
     pop_inicial.append(Solucao(tam_sol))
 
-  # loop insere um item DIFERENTE aleatoriamente em cada solucao
+  # loop insere 10 itens DIFERENTES aleatoriamente em cada solucao
+  quant_itens = 10
   for index in range(tam_pop):
-    #TODO: ADICIONAR 10 ITENS PRA CADA SOLUICAO
-    nova_sol = pop_inicial[index]
-    index_mut = random.choice(indices_validos)
-    indices_validos.remove(index_mut)
-    nova_sol.cromo[index_mut] = 1
-    nova_sol.calc_fitness()
+    for i in range(quant_itens):
+      nova_sol = pop_inicial[index]
+      index_mut = random.choice(indices_validos)
+      nova_sol.cromo[index_mut] = 1
+      nova_sol.calc_fitness()
 
   return pop_inicial
 
 
-# deve haver garantia de que as duas pop em tamanho igual
-def selecao(nova_pop, pop):
-  for i in range(len(nova_pop)):
-    novo, antigo = nova_pop[i], pop[i]
-    if (antigo.fitness > novo.fitness):
-      nova_pop.append(antigo)
+# Algoritmo de roleta que pega fitness da populacao toda e
+def cria_roleta(pop):
+  total = 0
+
+  for indiv in pop:
+    total += indiv.fitness
+  inicio = 0
+  fatias = list()
+  for indiv in pop:
+    valor = int(indiv.fitness / total * 100)
+    intervalo = [inicio, inicio + valor]
+    fatias.append(intervalo)
+    inicio = valor + 1
+  print(fatias)
+
+  return fatias
+
+
+def sorteia_indiv(pop, fatias):
+  #garantido estar entre 0 e 100
+  valor = int(random.random() * 100)
+
+  for intervalo in fatias:
+    if intervalo[0] <= valor <= intervalo[1]:
+      index = fatias.index(intervalo)
+      return pop[index]
+
 
 
 def algoritmo(dicio_produtos):
@@ -132,18 +152,18 @@ def algoritmo(dicio_produtos):
 
   # cada individuo deve ser uma lista
   # pop eh lista de Solucao
-  random.seed = 1
+  random.seed(2)
   pop = gerar_pop_inicial(tam_pop, tam_sol)
 
   # contador de iteracoes
   cont = 0
   while (cont < 80):
     nova_pop = list()
-    #TODO: UTILIZAR ROLETA PARA DECIDIR QUEM IRA CRUZAR
+    fatias = cria_roleta(pop)
     for i in range(len(pop)):
-      #ADICIONAR  SELECAO ESTOCASTICA DE PAI E MAE COM ROLETA
-      pai = random.choice(pop)
-      mae = random.choice(pop)
+
+      pai = sorteia_indiv(pop, fatias)
+      mae = sorteia_indiv(pop, fatias)
       filho = reproducao(pai, mae, tam_sol)
       if (random.random() <= tx_mutacao):
         mutacao(filho)
@@ -155,6 +175,7 @@ def algoritmo(dicio_produtos):
       print(elem.cromo)
 
     pop = nova_pop
+    print(cont)
     cont += 1
 
   pop_final = sorted(pop, key=lambda elem: elem.fitness, reverse=True)
