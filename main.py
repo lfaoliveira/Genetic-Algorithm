@@ -1,6 +1,6 @@
 import random
 import copy
-
+import time
 
 class Algoritmo:
   def __init__(self) -> None:
@@ -38,18 +38,24 @@ class Solucao:
   def __init__(self, tam_sol):
     self.cromo = [0 for i in range(tam_sol)]
     self.fitness = 0
+    self.somat_nec = 0
+    self.somat_custo = 0
 
   def calc_fitness(self):
-    total = 0
     fitness = 0
     for elem in self.cromo:
       if elem == 1:
         index = self.cromo.index(elem)
-        total += dicio_produtos[index + 1]['Preço']
+        preco_item = dicio_produtos[index + 1]['Preço']
         necessidade = dicio_produtos[index + 1]['Necessidade']
-        fitness += necessidade ** 2 - total
-    if (total >= limite_custo):
+        
+        self.somat_nec += necessidade
+        self.somat_custo += preco_item
+
+    fitness = self.somat_nec**2  - self.somat_custo
+    if (self.somat_custo >= limite_custo):
       fitness = fitness / 10
+    
     self.fitness = fitness
     return fitness
 
@@ -79,7 +85,6 @@ def reproducao(pai, mae, tam_sol):
     parente = None
     if (bit_pai == 1):
       # filho recebe parte do pai
-
       parente = pai
       bit_pai = 0
     else:
@@ -101,16 +106,22 @@ def gerar_pop_inicial(tam_pop, tam_sol):
   indices_validos = [i for i in range(tam_sol)]
   for i in range(tam_pop):
     pop_inicial.append(Solucao(tam_sol))
-
-  # loop insere 10 itens DIFERENTES aleatoriamente em cada solucao
+  # loop insere 10 itens DIFERENTES em cada solucao
   quant_itens = 10
   for index in range(tam_pop):
+    nova_sol = pop_inicial[index]
     for i in range(quant_itens):
-      nova_sol = pop_inicial[index]
-      index_mut = random.choice(indices_validos)
-      nova_sol.cromo[index_mut] = 1
-      nova_sol.calc_fitness()
-
+      flag = True
+      #while checa se um item ja foi inserido na solucao  
+      while(flag):
+        index_mut = random.choice(indices_validos)
+        if(nova_sol.cromo[index_mut] == 1):
+          flag = True
+        else:
+          nova_sol.cromo[index_mut] = 1
+          flag = False
+    nova_sol.calc_fitness()
+    pop_inicial[index] = nova_sol  
   return pop_inicial
 
 
@@ -121,13 +132,13 @@ def cria_roleta(pop):
   for indiv in pop:
     total += indiv.fitness
   inicio = 0
-  fatias = list()
+  fatias = []
   for indiv in pop:
     valor = int(indiv.fitness / total * 100)
     intervalo = [inicio, inicio + valor]
     fatias.append(intervalo)
-    inicio = valor + 1
-  print(fatias)
+    inicio =  inicio + valor + 1
+  
 
   return fatias
 
@@ -157,11 +168,11 @@ def algoritmo(dicio_produtos):
 
   # contador de iteracoes
   cont = 0
-  while (cont < 80):
+  time_stop = time.time() + 10
+  while (time.time() < time_stop):
     nova_pop = list()
     fatias = cria_roleta(pop)
     for i in range(len(pop)):
-
       pai = sorteia_indiv(pop, fatias)
       mae = sorteia_indiv(pop, fatias)
       filho = reproducao(pai, mae, tam_sol)
@@ -171,25 +182,38 @@ def algoritmo(dicio_produtos):
 
     # pop.sort(key = lambda elem: elem.fitness, reverse = True)
 
-    for elem in nova_pop:
+    '''for elem in nova_pop:
       print(elem.cromo)
-
+'''
     pop = nova_pop
     print(cont)
     cont += 1
+  for elem in pop:
+    if(elem.somat_custo > limite_custo):
+      pop.remove(elem)
+  pop = sorted(pop, key=lambda elem: elem.somat_nec, reverse=True)
 
-  pop_final = sorted(pop, key=lambda elem: elem.fitness, reverse=True)
-  return pop_final[0]
+  return pop[0]
+
+
+def mostrar_solucao(solucao):
+  for i, elem in enumerate(solucao.cromo):
+    #pegar dados do dicionario
+    if(elem == 1):
+      nome = dicio_produtos[i + 1]['Produto']
+      necessidade = dicio_produtos[i + 1]['Necessidade']
+      custo = dicio_produtos[i + 1]['Preço']
+
+      print(f"|       {nome}, Custo:{custo}, Necessidade:{necessidade}      |")
+    else:
+      print(f"|       {None}, Custo:{None}, Necessidade:{None}            |")
+
 
 
 # ------------------ MAIN ----------------------#
 
-a = algoritmo(dicio_produtos)
-print(a.cromo)
-custo = 0
-for elem in a.cromo:
-  if elem == 1:
-    index = a.cromo.index(elem)
-    custo += dicio_produtos[index + 1]['Preço']
+sol_final = algoritmo(dicio_produtos)
 
-print(custo)
+print("fitness: " + str(sol_final.somat_nec) + "custo: " + str(sol_final.somat_custo))
+
+mostrar_solucao(sol_final)
